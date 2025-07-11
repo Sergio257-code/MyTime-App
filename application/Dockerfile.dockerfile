@@ -1,38 +1,38 @@
-# Utilise une image officielle PHP avec extensions nécessaires
+# Use PHP 7.4 base image with FPM
 FROM php:7.4-fpm
 
-# Installe les dépendances système
+# Set working directory inside the container
+WORKDIR /var/www
+
+# Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
+    git \
+    curl \
     libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
     zip \
     unzip \
-    git \
-    curl \
-    npm
+    libzip-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Installe les extensions PHP requises
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Installe Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Copy the existing Laravel project files to the container
+COPY . .
 
-# Définit le dossier de travail
-WORKDIR /var/www
+# Install PHP dependencies using Composer
+RUN composer install --no-dev --optimize-autoloader
 
-# Copie le code source
-COPY . /var/www
-
-# Installe les dépendances PHP et JS
-RUN composer install
-RUN npm install && npm run build
-
-# Donne les bons droits
+# Set permissions (adjust to match your app needs)
 RUN chown -R www-data:www-data /var/www
 
-# Expose le port 8000
+# Expose port (default for Laravel's built-in server)
 EXPOSE 8000
 
-# Commande de démarrage
-CMD php artisan serve --host=0.0.0.0 --port=8000
+# Start Laravel using Artisan
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
